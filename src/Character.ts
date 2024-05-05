@@ -18,7 +18,3 @@ export const validateCharacter = (input: Character): boolean => {
   return true;
 };
 
-
-export const performAttack = (attacker: Character, defender: Character) => {
-
-};

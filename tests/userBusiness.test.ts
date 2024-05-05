@@ -185,7 +185,7 @@ describe("Teste de getByID", () => {
         role: "nomral",
       });
     } catch (error) {
-      console.error(error);
+      console.log(error);
     }
   });
 });
