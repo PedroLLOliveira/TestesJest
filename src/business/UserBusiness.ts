@@ -6,113 +6,146 @@ import { IdGenerator } from "../services/idGenerator";
 import { TokenGenerator } from "../services/tokenGenerator";
 
 export class UserBusiness {
+  constructor(
+    private userDatabase: UserDatabase,
+    private idGenerator: IdGenerator,
+    private tokenGenerator: TokenGenerator,
+    private hashGenerator: HashGenerator
+  ) {}
 
-   constructor(
-      private userDatabase: UserDatabase,
-      private idGenerator: IdGenerator,
-      private tokenGenerator: TokenGenerator,
-      private hashGenerator: HashGenerator
-   ) { }
-
-   public async signup(
-      name: string,
-      email: string,
-      password: string,
-      role: string
-   ) {
-      try {
-         if (!name || !email || !password || !role) {
-            throw new CustomError(422, "Missing input");
-         }
-         /* 
+  public async signup(
+    name: string,
+    email: string,
+    password: string,
+    role: string
+  ) {
+    try {
+      if (!name || !email || !password || !role) {
+        throw new CustomError(422, "Missing input");
+      }
+      /* 
          Como funciona o index of
          const email = fl@fravo.com.br -> email.indexOf("@") -> 2
          const email = @fl.com.br -> email.indexOf("@") ->  0
          const email = fl.com.br -> email.indexOf("@") -> -1
          */
-         if (email.indexOf("@") === -1 || email.indexOf("@") === 0) {
-            throw new CustomError(422, "Invalid email");
-         }
-
-         if (password.length < 6) {
-            throw new CustomError(422, "Invalid password");
-         }
-
-         const id = this.idGenerator.generate();
-
-         const cypherPassword = await this.hashGenerator.hash(password);
-
-         await this.userDatabase.createUser(
-            new User(id, name, email, cypherPassword, stringToUserRole(role))
-         );
-
-         const accessToken = this.tokenGenerator.generate({
-            id,
-            role,
-         });
-         return { accessToken };
-      } catch (error) {
-         if (error instanceof CustomError) {
-            if (error.message.includes("key 'email'")) {
-               throw new CustomError(409, "Email already in use")
-            }
-
-            throw new CustomError(error.statusCode, error.message)
-         }
+      if (email.indexOf("@") === -1 || email.indexOf("@") === 0) {
+        throw new CustomError(422, "Invalid email");
       }
 
-   }
-
-   public async login(email: string, password: string) {
-
-      try {
-         if (!email || !password) {
-            throw new CustomError(422, "Missing input");
-         }
-
-         const user = await this.userDatabase.getUserByEmail(email);
-
-         if (!user) {
-            throw new CustomError(401, "Invalid credentials");
-         }
-
-         const isPasswordCorrect = await this.hashGenerator.compareHash(
-            password,
-            user.getPassword()
-         );
-
-         if (!isPasswordCorrect) {
-            throw new CustomError(401, "Invalid credentials");
-         }
-
-         const accessToken = this.tokenGenerator.generate({
-            id: user.getId(),
-            role: user.getRole(),
-         });
-
-         return { accessToken };
-      } catch (error) {
-         if (error instanceof CustomError) {
-            throw new CustomError(error.statusCode, error.message)
-         }
+      if (password.length < 6) {
+        throw new CustomError(422, "Invalid password");
       }
-   }
 
-   public async getUserById(id: string) {
-      try {
-         // verifica o parametro id esta presente
-         if(!id){
-            throw new CustomError(422, "Missing input");
-         }
+      const id = this.idGenerator.generate();
 
-         const user = await this.userDatabase.getUserById(id)
+      const cypherPassword = await this.hashGenerator.hash(password);
 
-         return { user }
+      await this.userDatabase.createUser(
+        new User(id, name, email, cypherPassword, stringToUserRole(role))
+      );
 
-      } catch(err) {
-         if(err instanceof CustomError) {
-            throw new CustomError(err.statusCode, err.message )
-         }
+      const accessToken = this.tokenGenerator.generate({
+        id,
+        role,
+      });
+      return { accessToken };
+    } catch (error) {
+      if (error instanceof CustomError) {
+        if (error.message.includes("key 'email'")) {
+          throw new CustomError(409, "Email already in use");
+        }
+
+        throw new CustomError(error.statusCode, error.message);
       }
-   }
+    }
+  }
+
+  public async login(email: string, password: string) {
+    try {
+      if (!email || !password) {
+        throw new CustomError(422, "Missing input");
+      }
+
+      const user = await this.userDatabase.getUserByEmail(email);
+
+      if (!user) {
+        throw new CustomError(401, "Invalid credentials");
+      }
+
+      const isPasswordCorrect = await this.hashGenerator.compareHash(
+        password,
+        user.getPassword()
+      );
+
+      if (!isPasswordCorrect) {
+        throw new CustomError(401, "Invalid credentials");
+      }
+
+      const accessToken = this.tokenGenerator.generate({
+        id: user.getId(),
+        role: user.getRole(),
+      });
+
+      return { accessToken };
+    } catch (error) {
+      if (error instanceof CustomError) {
+        throw new CustomError(error.statusCode, error.message);
+      }
+    }
+  }
+
+  public async getUserById(id: string) {
+    try {
+      // verifica o parametro id esta presente
+      if (!id) {
+        throw new CustomError(422, "Missing input");
+      }
+
+      const user = await this.userDatabase.getUserById(id);
+
+      return { user };
+    } catch (err) {
+      if (err instanceof CustomError) {
+        throw new CustomError(err.statusCode, err.message);
+      }
+    }
+  }
+
+  public async getUsersAll(token: string) {
+   try {
+      if (!token) {
+        throw new CustomError(422, "Missing input");
+      }
+      const userData = this.tokenGenerator.verify(token);
+
+      if (userData.role !== "admin") {
+        throw new CustomError(403, "Unauthorized");
+      }
+      const users = await this.userDatabase.getAllUsers();
+
+      return { users };
+    } catch (err: any) {
+      if (err instanceof CustomError) {
+        throw new CustomError(err.statusCode, err.message);
+      }
+    }
+  }
+
+  public async getProfile(token: string) {
+   try {
+      if (!token) {
+        throw new CustomError(422, "Missing input");
+      }
+      const userData = this.tokenGenerator.verify(token);
+
+      const profile = await this.userDatabase.getProfile(userData.id);
+
+      return { profile };
+    } catch (err: any) {
+      if (err instanceof CustomError) {
+        throw new CustomError(err.statusCode, err.message);
+      }
+    }
+  }
 }

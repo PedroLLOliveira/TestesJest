@@ -31,4 +31,26 @@ export class UserController {
          res.status(statusCode || 400).send({ message });
       }
    }
+
+   public async getUsersAll(req: Request, res: Response) {
+      try {
+         const token = req.headers.authorization
+         const result = await this.userBusiness.getUsersAll(token as string);
+         res.status(200).send(result)
+      } catch(err: any) {
+         const { statusCode, message } = err
+         res.status(statusCode || 400).send({ message });
+      }
+   }
+
+   public async getProfile(req: Request, res: Response) {
+      try {
+         const token = req.headers.authorization
+         const result = await this.userBusiness.getProfile(token as string);
+         res.status(200).send(result)
+      } catch(err: any) {
+         const { statusCode, message } = err
+         res.status(statusCode || 400).send({ message });
+      }
+   }
 }

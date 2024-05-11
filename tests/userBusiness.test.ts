@@ -8,6 +8,7 @@
 
 import { UserBusiness } from "../src/business/UserBusiness";
 import { CustomError } from "../src/errors/CustomError";
+import { TokenGenerator } from "../src/services/tokenGenerator";
 import { HashGeneratorMock } from "./mocks/hashGeneratorMock";
 import { IdGeneratorMock } from "./mocks/idGeneratorMock";
 import { TokenGeneratorMock } from "./mocks/tokenGeneratorMock";
@@ -187,5 +188,125 @@ describe("Teste de getByID", () => {
     } catch (error) {
       console.log(error);
     }
+  });
+});
+
+
+
+// Mock das dependências do UserBusiness
+const userDatabaseMock = {
+  createUser: jest.fn(),
+  getUserByEmail: jest.fn(),
+  getUserById: jest.fn(),
+  getAllUsers: jest.fn()
+};
+
+const idGeneratorMock = {
+  generate: jest.fn()
+};
+
+const hashGeneratorMock = {
+  hash: jest.fn(),
+  compareHash: jest.fn()
+};
+
+const tokenGeneratorMock = {
+  generate: jest.fn(),
+  verify: jest.fn()
+};
+
+describe("UserBusiness", () => {
+  describe("getUsersAll", () => {
+    test("Erro de não autorizado", async () => {
+      const token = "invalid_token";
+      const userBusiness = new UserBusiness(
+        userDatabaseMock as any,
+        idGeneratorMock as any,
+        tokenGeneratorMock as any,
+        hashGeneratorMock as any
+      );
+
+      tokenGeneratorMock.verify.mockReturnValue({ id: "userId", role: "user" });
+
+      try {
+        await userBusiness.getUsersAll(token);
+      } catch (error: any) {
+        expect(error).toBeInstanceOf(CustomError);
+        expect(error.statusCode).toBe(403);
+        expect(error.message).toBe("Unauthorized");
+      }
+
+      expect(userDatabaseMock.getAllUsers).not.toBeCalled();
+    });
+
+    test("Resposta de sucesso", async () => {
+      const token = "valid_token";
+      const userBusiness = new UserBusiness(
+        userDatabaseMock as any,
+        idGeneratorMock as any,
+        tokenGeneratorMock as any,
+        hashGeneratorMock as any
+      );
+
+      tokenGeneratorMock.verify.mockReturnValue({ id: "userId", role: "admin" });
+      userDatabaseMock.getAllUsers.mockReturnValue(["user1", "user2", "user3"]);
+
+      const result = await userBusiness.getUsersAll(token);
+
+      expect(result).toEqual({ users: ["user1", "user2", "user3"] });
+      expect(userDatabaseMock.getAllUsers).toBeCalled();
+    });
+  });
+});
+
+const userDatabaseProfileMock = {
+  createUser: jest.fn(),
+  getUserByEmail: jest.fn(),
+  getUserById: jest.fn(),
+  getAllUsers: jest.fn(),
+  getProfile: jest.fn()
+};
+describe("UserBusiness", () => {
+  describe("getProfile", () => {
+    test("Erro de token ausente", async () => {
+      const token = "";
+      const userBusiness = new UserBusiness(
+        userDatabaseMock as any,
+        idGeneratorMock as any,
+        tokenGeneratorMock as any,
+        hashGeneratorMock as any
+      );
+
+      try {
+        await userBusiness.getProfile(token);
+      } catch (error: any) {
+        expect(error).toBeInstanceOf(CustomError);
+        expect(error.statusCode).toBe(422);
+        expect(error.message).toBe("Missing input");
+      }
+
+      expect(userDatabaseProfileMock.getProfile).not.toBeCalled();
+    });
+
+    test("Obter perfil com sucesso", async () => {
+      const token = "valid_token";
+      const userId = "userId";
+      const profileData = { name: "John Doe", email: "john@example.com", role: "user" };
+
+      const userBusiness = new UserBusiness(
+        userDatabaseProfileMock as any,
+        idGeneratorMock as any,
+        tokenGeneratorMock as any,
+        hashGeneratorMock as any
+      );
+
+      tokenGeneratorMock.verify.mockReturnValue({ id: userId });
+      userDatabaseProfileMock.getProfile.mockReturnValue(profileData);
+
+      const result = await userBusiness.getProfile(token);
+
+      expect(result).toEqual({ profile: profileData });
+      expect(userDatabaseProfileMock.getProfile).toBeCalledWith(userId);
+    });
   });
 });

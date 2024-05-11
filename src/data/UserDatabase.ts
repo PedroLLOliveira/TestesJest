@@ -69,4 +69,17 @@ export class UserDatabase extends BaseDataBase {
          throw new Error(error.sqlMessage || error.message)
       }
    }
+
+   public async getProfile(id: string): Promise<User[]> {
+      try {
+         const result = await BaseDataBase.connection.raw(`
+            SELECT * from ${this.tableName} WHERE id = ${id}
+         `);
+         return result[0].map((res: any) => {
+            return this.toModel(res);
+         });
+      } catch (error:any) {
+         throw new Error(error.sqlMessage || error.message)
+      }
+   }
 }
